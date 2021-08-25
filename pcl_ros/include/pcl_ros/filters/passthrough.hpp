@@ -41,6 +41,7 @@
 // PCL includes
 #include <pcl/filters/passthrough.h>
 #include "pcl_ros/filters/filter.hpp"
+#include <mutex>
 
 namespace pcl_ros
 {
@@ -50,9 +51,15 @@ namespace pcl_ros
   */
 class PassThrough : public Filter
 {
-protected:
+ public:
+  PassThrough(const rclcpp::NodeOptions& options) : Filter("Passthrough", options)
+  {
+    child_init();
+  }
+
+ protected:
   /** \brief Pointer to a dynamic reconfigure service. */
-  boost::shared_ptr<dynamic_reconfigure::Server<pcl_ros::FilterConfig>> srv_;
+  //boost::shared_ptr<dynamic_reconfigure::Server<pcl_ros::FilterConfig>> srv_;
 
   /** \brief Call the actual filter.
     * \param input the input point cloud dataset
@@ -61,32 +68,36 @@ protected:
     */
   inline void
   filter(
-    const PointCloud2::ConstPtr & input, const IndicesPtr & indices,
+    const PointCloud2::ConstSharedPtr & input, const IndicesPtr & indices,
     PointCloud2 & output)
   {
-    boost::mutex::scoped_lock lock(mutex_);
-    pcl::PCLPointCloud2::Ptr pcl_input(new pcl::PCLPointCloud2);
-    pcl_conversions::toPCL(*(input), *(pcl_input));
-    impl_.setInputCloud(pcl_input);
-    impl_.setIndices(indices);
-    pcl::PCLPointCloud2 pcl_output;
-    impl_.filter(pcl_output);
-    pcl_conversions::moveFromPCL(pcl_output, output);
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      pcl::PCLPointCloud2::Ptr pcl_input(new pcl::PCLPointCloud2);
+      pcl_conversions::toPCL(*(input), *(pcl_input));
+      impl_.setInputCloud(pcl_input);
+      impl_.setIndices(indices);
+      pcl::PCLPointCloud2 pcl_output;
+      impl_.filter(pcl_output);
+      pcl_conversions::moveFromPCL(pcl_output, output);
+    }
   }
 
   /** \brief Child initialization routine.
     * \param nh ROS node handle
     * \param has_service set to true if the child has a Dynamic Reconfigure service
     */
-  bool
-  child_init(ros::NodeHandle & nh, bool & has_service);
+  bool child_init();
 
   /** \brief Dynamic reconfigure service callback.
     * \param config the dynamic reconfigure FilterConfig object
     * \param level the dynamic reconfigure level
     */
-  void
-  config_callback(pcl_ros::FilterConfig & config, uint32_t level);
+  rcl_interfaces::msg::SetParametersResult parametersCallback(
+      const std::vector<rclcpp::Parameter> &parameters);
+
+  OnSetParametersCallbackHandle::SharedPtr param_callback_handle_;
+
 
 private:
   /** \brief The PCL filter implementation used. */

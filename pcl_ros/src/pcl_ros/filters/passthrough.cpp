@@ -36,95 +36,75 @@
  */
 
 #include "pcl_ros/filters/passthrough.hpp"
-#include <pluginlib/class_list_macros.h>
+#include <pluginlib/class_list_macros.hpp>
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool
-pcl_ros::PassThrough::child_init(ros::NodeHandle & nh, bool & has_service)
+pcl_ros::PassThrough::child_init()
 {
-  // Enable the dynamic reconfigure service
-  has_service = true;
-  srv_ = boost::make_shared<dynamic_reconfigure::Server<pcl_ros::FilterConfig>>(nh);
-  dynamic_reconfigure::Server<pcl_ros::FilterConfig>::CallbackType f = boost::bind(
-    &PassThrough::config_callback, this, _1, _2);
-  srv_->setCallback(f);
+  this->declare_parameter<double>("filter_limit_min", std::numeric_limits<double>::min());
+  this->declare_parameter<double>("filter_limit_max", std::numeric_limits<double>::max());
+  this->declare_parameter<std::string>("filter_field_name", "z");
+  this->declare_parameter<bool>("keep_organized", false);
+  this->declare_parameter<bool>("negative", false);
+  this->declare_parameter<std::string>("input_frame", "");
+  this->declare_parameter<std::string>("output_frame", "");
 
+
+  param_callback_handle_ = this->add_on_set_parameters_callback(std::bind(&PassThrough::parametersCallback, this, std::placeholders::_1));
   return true;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-void
-pcl_ros::PassThrough::config_callback(pcl_ros::FilterConfig & config, uint32_t level)
+rcl_interfaces::msg::SetParametersResult pcl_ros::PassThrough::parametersCallback(
+    const std::vector<rclcpp::Parameter> &parameters)
 {
-  boost::mutex::scoped_lock lock(mutex_);
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
 
-  double filter_min, filter_max;
-  impl_.getFilterLimits(filter_min, filter_max);
+//      filter_field_name_ = impl_.getFilterFieldName();
+//      impl_.getFilterLimits(filter_limit_min_, filter_limit_max_);
+//      filter_keep_organized_ = impl_.getKeepOrganized();
+//      filter_limit_negative_ = impl_.getNegative();
+//      tf_input_frame_ = impl_.
 
-  // Check the current values for filter min-max
-  if (filter_min != config.filter_limit_min) {
-    filter_min = config.filter_limit_min;
-    NODELET_DEBUG(
-      "[%s::config_callback] Setting the minimum filtering value a point will be "
-      "considered from to: %f.",
-      getName().c_str(), filter_min);
-    // Set the filter min-max if different
-    impl_.setFilterLimits(filter_min, filter_max);
-  }
-  // Check the current values for filter min-max
-  if (filter_max != config.filter_limit_max) {
-    filter_max = config.filter_limit_max;
-    NODELET_DEBUG(
-      "[%s::config_callback] Setting the maximum filtering value a point will be "
-      "considered from to: %f.",
-      getName().c_str(), filter_max);
-    // Set the filter min-max if different
-    impl_.setFilterLimits(filter_min, filter_max);
-  }
+      for (const auto &p : parameters)
+      {
+        if (p.get_name() == "filter_limit_min")
+          filter_limit_min_ = p.as_double();
+        else if (p.get_name() == "filter_limit_max")
+          filter_limit_max_ = p.as_double();
+        else if (p.get_name() == "filter_field_name")
+          filter_field_name_ = p.as_string();
+        else if (p.get_name() == "keep_organized")
+          filter_keep_organized_ = p.as_bool();
+        else if (p.get_name() == "negative")
+          filter_limit_negative_ = p.as_bool();
+        else if (p.get_name() == "input_frame")
+          tf_input_frame_ = p.as_string();
+        else if (p.get_name() == "output_frame")
+          tf_output_frame_ = p.as_string();
+      }
 
-  // Check the current value for the filter field
-  // std::string filter_field = impl_.getFilterFieldName ();
-  if (impl_.getFilterFieldName() != config.filter_field_name) {
-    // Set the filter field if different
-    impl_.setFilterFieldName(config.filter_field_name);
-    NODELET_DEBUG(
-      "[%s::config_callback] Setting the filter field name to: %s.",
-      getName().c_str(), config.filter_field_name.c_str());
-  }
+      impl_.setFilterLimits(filter_limit_min_, filter_limit_max_);
+      impl_.setFilterFieldName(filter_field_name_);
+      impl_.setKeepOrganized(filter_keep_organized_);
+      impl_.setNegative(filter_limit_negative_);
 
-  // Check the current value for keep_organized
-  if (impl_.getKeepOrganized() != config.keep_organized) {
-    NODELET_DEBUG(
-      "[%s::config_callback] Setting the filter keep_organized value to: %s.",
-      getName().c_str(), config.keep_organized ? "true" : "false");
-    // Call the virtual method in the child
-    impl_.setKeepOrganized(config.keep_organized);
-  }
+    }
 
-  // Check the current value for the negative flag
-  if (impl_.getFilterLimitsNegative() != config.filter_limit_negative) {
-    NODELET_DEBUG(
-      "[%s::config_callback] Setting the filter negative flag to: %s.",
-      getName().c_str(), config.filter_limit_negative ? "true" : "false");
-    // Call the virtual method in the child
-    impl_.setFilterLimitsNegative(config.filter_limit_negative);
-  }
-
-  // The following parameters are updated automatically for all PCL_ROS Nodelet Filters
-  // as they are inexistent in PCL
-  if (tf_input_frame_ != config.input_frame) {
-    tf_input_frame_ = config.input_frame;
-    NODELET_DEBUG(
-      "[%s::config_callback] Setting the input TF frame to: %s.",
-      getName().c_str(), tf_input_frame_.c_str());
-  }
-  if (tf_output_frame_ != config.output_frame) {
-    tf_output_frame_ = config.output_frame;
-    NODELET_DEBUG(
-      "[%s::config_callback] Setting the output TF frame to: %s.",
-      getName().c_str(), tf_output_frame_.c_str());
-  }
+  rcl_interfaces::msg::SetParametersResult result;
+  result.successful = true;
+  result.reason = "success";
+  // Here update class attributes, do some actions, etc.
+  return result;
 }
 
 typedef pcl_ros::PassThrough PassThrough;
-PLUGINLIB_EXPORT_CLASS(PassThrough, nodelet::Nodelet);
+//PLUGINLIB_EXPORT_CLASS(PassThrough, nodelet::Nodelet);
+#include "rclcpp_components/register_node_macro.hpp"
+
+// Register the component with class_loader.
+// This acts as a sort of entry point, allowing the component to be discoverable when its library
+// is being loaded into a running process.
+RCLCPP_COMPONENTS_REGISTER_NODE(pcl_ros::PassThrough)

@@ -1,190 +1,152 @@
-/*
- * Software License Agreement (BSD License)
- *
- *  Copyright (c) 2009, Willow Garage, Inc.
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
- *     disclaimer in the documentation and/or other materials provided
- *     with the distribution.
- *   * Neither the name of Willow Garage, Inc. nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id: pcd_io.cpp 35812 2011-02-08 00:05:03Z rusu $
- *
- */
+//*
+// * Software License Agreement (BSD License)
+// *
+// *  Copyright (c) 2009, Willow Garage, Inc.
+// *  All rights reserved.
+// *
+// *  Redistribution and use in source and binary forms, with or without
+// *  modification, are permitted provided that the following conditions
+// *  are met:
+// *
+// *   * Redistributions of source code must retain the above copyright
+// *     notice, this list of conditions and the following disclaimer.
+// *   * Redistributions in binary form must reproduce the above
+// *     copyright notice, this list of conditions and the following
+// *     disclaimer in the documentation and/or other materials provided
+// *     with the distribution.
+// *   * Neither the name of Willow Garage, Inc. nor the names of its
+// *     contributors may be used to endorse or promote products derived
+// *     from this software without specific prior written permission.
+// *
+// *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+// *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+// *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+// *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+// *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+// *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+// *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+// *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+// *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+// *  POSSIBILITY OF SUCH DAMAGE.
+// *
+// * $Id: pcd_io.cpp 35812 2011-02-08 00:05:03Z rusu $
+// *
+// */
 
-#include <pluginlib/class_list_macros.h>
 #include <pcl_ros/io/pcd_io.hpp>
-#include <string>
+#include <thread>
+#include <rcl_interfaces/msg/set_parameters_result.hpp>
+#include <pcl/PCLPointCloud2.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <boost/filesystem.hpp>
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void
-pcl_ros::PCDReader::onInit()
+namespace pcl_ros
 {
-  PCLNodelet::onInit();
-  // Provide a latched topic
-  ros::Publisher pub_output = pnh_->advertise<PointCloud2>("output", max_queue_size_, true);
+  PCDReader::PCDReader(const rclcpp::NodeOptions & options) : Node("PCDReader", options)
+  {
+    this->declare_parameter<double>("publish_rate", 1);
+    this->declare_parameter<std::string>("file_name", "none");
+    this->declare_parameter<std::string>("tf_frame", "map");
 
-  pnh_->getParam("publish_rate", publish_rate_);
-  pnh_->getParam("tf_frame", tf_frame_);
+    cb_handle_ = this->add_on_set_parameters_callback(
+        std::bind(&PCDReader::ParametersCallback, this, std::placeholders::_1));
 
-  NODELET_DEBUG(
-    "[%s::onInit] Nodelet successfully created with the following parameters:\n"
-    " - publish_rate : %f\n"
-    " - tf_frame     : %s",
-    getName().c_str(),
-    publish_rate_, tf_frame_.c_str());
+    pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("output", 10);
+    this->get_parameter("publish_rate", publish_rate_);
+    this->get_parameter("tf_frame", tf_frame_);
+    auto gfn = this->get_parameter("file_name", file_name_);
+    RCLCPP_INFO(this->get_logger(), "Got Filename");
+    std::flush(std::cout);
 
-  PointCloud2Ptr output_new;
-  output_ = boost::make_shared<PointCloud2>();
-  output_new = boost::make_shared<PointCloud2>();
+    thread_ = std::thread([this](){
+      std::string file_name;
+      std::string tf;
+      double rate = 1.0;
+      bool new_file = false;
+      auto reader = pcl::PCDReader();
 
-  // Wait in a loop until someone connects
-  do {
-    ROS_DEBUG_ONCE("[%s::onInit] Waiting for a client to connect...", getName().c_str());
-    ros::spinOnce();
-    ros::Duration(0.01).sleep();
-  } while (pnh_->ok() && pub_output.getNumSubscribers() == 0);
+      while(rclcpp::ok())
+      {
+        //RCLCPP_INFO(this->get_logger(), "In Thread");
+        std::flush(std::cout);
 
-  std::string file_name;
+        std::lock_guard<std::mutex> lock(mutex_);
+        {
+          if (file_name != file_name_)
+          {
+            new_file = true;
+            file_name = file_name_;
+          }
 
-  while (pnh_->ok()) {
-    // Get the current filename parameter. If no filename set, loop
-    if (!pnh_->getParam("filename", file_name_) && file_name_.empty()) {
-      ROS_ERROR_ONCE(
-        "[%s::onInit] Need a 'filename' parameter to be set before continuing!",
-        getName().c_str());
-      ros::Duration(0.01).sleep();
-      ros::spinOnce();
-      continue;
-    }
+          tf = tf_frame_;
+          rate = publish_rate_;
+        }
 
-    // If the filename parameter holds a different value than the last one we read
-    if (file_name_.compare(file_name) != 0 && !file_name_.empty()) {
-      NODELET_INFO("[%s::onInit] New file given: %s", getName().c_str(), file_name_.c_str());
-      file_name = file_name_;
-      pcl::PCLPointCloud2 cloud;
-      if (impl_.read(file_name_, cloud) < 0) {
-        NODELET_ERROR("[%s::onInit] Error reading %s !", getName().c_str(), file_name_.c_str());
-        return;
+        if (new_file)
+        {
+          new_file = false;
+          pcl::PCLPointCloud2 cloud;
+          if (boost::filesystem::is_regular_file(file_name) && reader.read(file_name, cloud) < 0)
+          {
+            continue;
+          }
+          RCLCPP_INFO(this->get_logger(), "Got new_file %s", file_name.c_str());
+          std::flush(std::cout);
+
+          output_ = std::make_shared<sensor_msgs::msg::PointCloud2>();
+          pcl_conversions::moveFromPCL(cloud, *(output_));
+          output_->header.stamp = now();
+          output_->header.frame_id = tf;
+        }
+
+        if (output_)
+            pub_->publish(*output_);
+
+         std::this_thread::sleep_for(std::chrono::seconds(1));
       }
-      pcl_conversions::moveFromPCL(cloud, *(output_));
-      output_->header.stamp = ros::Time::now();
-      output_->header.frame_id = tf_frame_;
-    }
+    });
+  }
 
-    // We do not publish empty data
-    if (output_->data.size() == 0) {
-      continue;
-    }
+  rcl_interfaces::msg::SetParametersResult PCDReader::ParametersCallback(const std::vector<rclcpp::Parameter> &parameters)
+  {
+    auto result = rcl_interfaces::msg::SetParametersResult();
+    result.successful = true;
+    result.reason = "success";
 
-    if (publish_rate_ == 0) {
-      if (output_ != output_new) {
-        NODELET_DEBUG(
-          "Publishing data once (%d points) on topic %s in frame %s.",
-          output_->width * output_->height,
-          getMTPrivateNodeHandle().resolveName("output").c_str(), output_->header.frame_id.c_str());
-        pub_output.publish(output_);
-        output_new = output_;
+    RCLCPP_INFO(this->get_logger(), "Got New Parameters");
+    std::flush(std::cout);
+
+    std::lock_guard<std::mutex> lock(mutex_);
+    {
+      for (const auto &p : parameters)
+      {
+        if (p.get_name() == "publish_rate")
+          publish_rate_ = p.as_double();
+        else if (p.get_name() == "tf_frame")
+          tf_frame_ = p.as_string();
+        else if (p.get_name() == "file_name")
+          file_name_ = p.as_string();
       }
-      ros::Duration(0.01).sleep();
-    } else {
-      NODELET_DEBUG(
-        "Publishing data (%d points) on topic %s in frame %s.",
-        output_->width * output_->height, getMTPrivateNodeHandle().resolveName(
-          "output").c_str(), output_->header.frame_id.c_str());
-      output_->header.stamp = ros::Time::now();
-      pub_output.publish(output_);
-
-      ros::Duration(publish_rate_).sleep();
     }
 
-    ros::spinOnce();
-    // Update parameters from server
-    pnh_->getParam("publish_rate", publish_rate_);
-    pnh_->getParam("tf_frame", tf_frame_);
+    return result;
   }
 
-  onInitPostProcess();
-}
+//  PCDWriter::PCDWriter(const rclcpp::NodeOptions &options) : Node("PCDWriter", options)
+//  {
+//    subscription_ = this->create_subscription<sensor_msgs::msg::PointCloud2>("input", 10, std::bind(&PCDWriter::input_callback, this, std::placeholders::_1));
+//  }
+//
+//  void PCDWriter::input_callback(const sensor_msgs::msg::PointCloud2 cloud) const
+//  {
+//
+//  }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void
-pcl_ros::PCDWriter::onInit()
-{
-  PCLNodelet::onInit();
 
-  sub_input_ = pnh_->subscribe("input", 1, &PCDWriter::input_callback, this);
-  // ---[ Optional parameters
-  pnh_->getParam("filename", file_name_);
-  pnh_->getParam("binary_mode", binary_mode_);
+} // namespace pcl_ros
 
-  NODELET_DEBUG(
-    "[%s::onInit] Nodelet successfully created with the following parameters:\n"
-    " - filename     : %s\n"
-    " - binary_mode  : %s",
-    getName().c_str(),
-    file_name_.c_str(), (binary_mode_) ? "true" : "false");
 
-  onInitPostProcess();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-void
-pcl_ros::PCDWriter::input_callback(const PointCloud2ConstPtr & cloud)
-{
-  if (!isValid(cloud)) {
-    return;
-  }
-
-  pnh_->getParam("filename", file_name_);
-
-  NODELET_DEBUG(
-    "[%s::input_callback] PointCloud with %d data points and frame %s on topic %s received.",
-    getName().c_str(), cloud->width * cloud->height,
-    cloud->header.frame_id.c_str(), getMTPrivateNodeHandle().resolveName("input").c_str());
-
-  std::string fname;
-  if (file_name_.empty()) {
-    fname = boost::lexical_cast<std::string>(cloud->header.stamp.toSec()) + ".pcd";
-  } else {
-    fname = file_name_;
-  }
-  pcl::PCLPointCloud2 pcl_cloud;
-  // It is safe to remove the const here because we are the only subscriber callback.
-  pcl_conversions::moveToPCL(*(const_cast<PointCloud2 *>(cloud.get())), pcl_cloud);
-  impl_.write(
-    fname, pcl_cloud, Eigen::Vector4f::Zero(),
-    Eigen::Quaternionf::Identity(), binary_mode_);
-
-  NODELET_DEBUG("[%s::input_callback] Data saved to %s", getName().c_str(), fname.c_str());
-}
-
-typedef pcl_ros::PCDReader PCDReader;
-typedef pcl_ros::PCDWriter PCDWriter;
-PLUGINLIB_EXPORT_CLASS(PCDReader, nodelet::Nodelet);
-PLUGINLIB_EXPORT_CLASS(PCDWriter, nodelet::Nodelet);

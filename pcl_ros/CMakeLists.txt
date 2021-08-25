@@ -21,45 +21,58 @@ find_package(geometry_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(pluginlib REQUIRED)
+find_package(rclcpp_components REQUIRED)
+
+include_directories(include)
+
+#include_directories(
+  #include
+  #${PCL_INCLUDE_DIRS}
+  #${pluginlib_INCLUDE_DIRS}
+  #${sensor_msgs_INCLUDE_DIRS}
+#)
 
 set(dependencies
-  pcl_conversions
-  rclcpp
-  sensor_msgs
-  geometry_msgs
-  tf2
-  tf2_geometry_msgs
-  tf2_ros
-  EIGEN3
-  PCL
-)
+        pcl_conversions
+        rclcpp
+        sensor_msgs
+        geometry_msgs
+        tf2
+        tf2_geometry_msgs
+        tf2_ros
+        EIGEN3
+        PCL
+        pluginlib
+        pcl_msgs
+        )
 
-include_directories(
-  include
-  ${PCL_INCLUDE_DIRS}
-)
+### Nodelets
+#
 
 ## Declare the pcl_ros_tf library
 add_library(pcl_ros_tf src/transforms.cpp)
 ament_target_dependencies(pcl_ros_tf
-  ${dependencies}
-)
-target_link_libraries(pcl_ros_tf ${PCL_LIBRARIES})
+        ${dependencies}
+        )
 
-### Nodelets
-#
 ### Declare the pcl_ros_io library
-#add_library(pcl_ros_io
-#  src/pcl_ros/io/bag_io.cpp
-#  src/pcl_ros/io/concatenate_data.cpp
-#  src/pcl_ros/io/concatenate_fields.cpp
-#  src/pcl_ros/io/io.cpp
-#  src/pcl_ros/io/pcd_io.cpp
-#)
-#target_link_libraries(pcl_ros_io pcl_ros_tf ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
-#class_loader_hide_library_symbols(pcl_ros_io)
-#
-### Declare the pcl_ros_features library
+  add_library(pcl_ros_io SHARED
+  #src/pcl_ros/io/bag_io.cpp
+  #src/pcl_ros/io/concatenate_data.cpp
+  #src/pcl_ros/io/concatenate_fields.cpp
+  #src/pcl_ros/io/io.cpp
+  src/pcl_ros/io/pcd_io.cpp
+)
+target_link_libraries(pcl_ros_io ${PCL_LIBRARIES})
+target_compile_definitions(pcl_ros_io
+        PRIVATE "COMPOSITION_BUILDING_DLL")
+ament_target_dependencies(pcl_ros_io
+        ${dependencies}
+        )
+rclcpp_components_register_nodes(pcl_ros_io "pcl_ros::PCDReader")
+set(node_plugins "${node_plugins}pcl_ros::PCDReader;$<TARGET_FILE:pcl_ros_io>\n")
+
 #add_library(pcl_ros_features
 #  src/pcl_ros/features/feature.cpp
 #  # Compilation is much faster if we include all the following CPP files in feature.cpp
@@ -75,22 +88,40 @@ target_link_libraries(pcl_ros_tf ${PCL_LIBRARIES})
 #  src/pcl_ros/features/principal_curvatures.cpp
 #  src/pcl_ros/features/vfh.cpp
 #)
+#target_link_libraries(pcl_ros_features ${PCL_LIBRARIES})
+#target_compile_definitions(pcl_ros_features
+#        PRIVATE "COMPOSITION_BUILDING_DLL")
+#ament_target_dependencies(pcl_ros_features
+#        ${dependencies}
+#        )
+#rclcpp_components_register_nodes(pcl_ros_features "pcl_ros::PCDReader")
+#set(node_plugins "${node_plugins}pcl_ros::PCDReader;$<TARGET_FILE:pcl_ros_io>\n")
+
 #target_link_libraries (pcl_ros_features ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 #add_dependencies(pcl_ros_features ${PROJECT_NAME}_gencfg)
 #class_loader_hide_library_symbols(pcl_ros_features)
 #
 #
 ### Declare the pcl_ros_filters library
-#add_library(pcl_ros_filters
+add_library(pcl_ros_filters SHARED
 #  src/pcl_ros/filters/extract_indices.cpp
-#  src/pcl_ros/filters/filter.cpp
-#  src/pcl_ros/filters/passthrough.cpp
+  src/pcl_ros/filters/filter.cpp
+  src/pcl_ros/filters/passthrough.cpp
 #  src/pcl_ros/filters/project_inliers.cpp
 #  src/pcl_ros/filters/radius_outlier_removal.cpp
 #  src/pcl_ros/filters/statistical_outlier_removal.cpp
 #  src/pcl_ros/filters/voxel_grid.cpp
 #  src/pcl_ros/filters/crop_box.cpp
-#)
+)
+target_link_libraries(pcl_ros_filters ${PCL_LIBRARIES})
+target_compile_definitions(pcl_ros_filters
+        PRIVATE "COMPOSITION_BUILDING_DLL")
+ament_target_dependencies(pcl_ros_filters
+        ${dependencies}
+        )
+rclcpp_components_register_nodes(pcl_ros_filters "pcl_ros::PassThrough")
+set(node_plugins "${node_plugins}pcl_ros::PCDReader;$<TARGET_FILE:pcl_ros_io>\n")
+
 #target_link_libraries(pcl_ros_filters pcl_ros_tf ${Boost_LIBRARIES} ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 #add_dependencies(pcl_ros_filters ${PROJECT_NAME}_gencfg)
 #class_loader_hide_library_symbols(pcl_ros_filters)
@@ -171,9 +202,9 @@ install(
 install(
   TARGETS
     pcl_ros_tf
-#    pcl_ros_io
+    pcl_ros_io
 #    pcl_ros_features
-#    pcl_ros_filters
+    pcl_ros_filters
 #    pcl_ros_surface
 #    pcl_ros_segmentation
 #    pcd_to_pointcloud

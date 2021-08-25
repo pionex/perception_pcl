@@ -1,1 +1,7 @@
 *.pyc
+build/
+install/
+log/
+pcl_ros/.idea/
+pcl_ros/cmake-build-debug-system/
+

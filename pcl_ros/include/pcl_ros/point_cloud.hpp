@@ -42,7 +42,8 @@
 #define ROS_POINTER_COMPATIBILITY_IMPLEMENTED 0
 #endif
 
-#include <ros/ros.h>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <rclcpp/rclcpp.hpp>
 #include <pcl/point_cloud.h>
 #include <pcl/point_traits.h>
 #include <pcl/for_each_type.h>
@@ -56,7 +57,7 @@
 #endif
 #endif
 #include <pcl_conversions/pcl_conversions.h>
-#include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/msg/point_cloud2.hpp>
 #include <boost/mpl/size.hpp>
 #include <boost/ref.hpp>
 #include <string>
@@ -118,14 +119,13 @@ struct FieldsLength
 }  // namespace detail
 }  // namespace pcl
 
-namespace ros
-{
+
 // In ROS 1.3.1+, we can specialize the functor used to create PointCloud<T> objects
 // on the subscriber side. This allows us to generate the mapping between message
 // data and object fields only once and reuse it.
-#if ROS_VERSION_MINIMUM(1, 3, 1)
+//#if ROS_VERSION_MINIMUM(1, 3, 1)
 template<typename T>
-struct DefaultMessageCreator<pcl::PointCloud<T>>
+struct message_filters::DefaultMessageCreator<pcl::PointCloud<T>>
 {
   boost::shared_ptr<pcl::MsgFieldMap> mapping_;
 
@@ -141,86 +141,92 @@ struct DefaultMessageCreator<pcl::PointCloud<T>>
     return msg;
   }
 };
-#endif
-
-namespace message_traits
+//#endif
+namespace ros
 {
-template<typename T>
-struct MD5Sum<pcl::PointCloud<T>>
-{
-  static const char * value() {return MD5Sum<sensor_msgs::PointCloud2>::value();}
-  static const char * value(const pcl::PointCloud<T> &) {return value();}
-
-  static const uint64_t static_value1 = MD5Sum<sensor_msgs::PointCloud2>::static_value1;
-  static const uint64_t static_value2 = MD5Sum<sensor_msgs::PointCloud2>::static_value2;
-
-  // If the definition of sensor_msgs/PointCloud2 changes, we'll get a compile error here.
-  ROS_STATIC_ASSERT(static_value1 == 0x1158d486dd51d683ULL);
-  ROS_STATIC_ASSERT(static_value2 == 0xce2f1be655c3c181ULL);
-};
-
-template<typename T>
-struct DataType<pcl::PointCloud<T>>
-{
-  static const char * value() {return DataType<sensor_msgs::PointCloud2>::value();}
-  static const char * value(const pcl::PointCloud<T> &) {return value();}
-};
-
-template<typename T>
-struct Definition<pcl::PointCloud<T>>
-{
-  static const char * value() {return Definition<sensor_msgs::PointCloud2>::value();}
-  static const char * value(const pcl::PointCloud<T> &) {return value();}
-};
-
-// pcl point clouds message don't have a ROS compatible header
-// the specialized meta functions below (TimeStamp and FrameId)
-// can be used to get the header data.
-template<typename T>
-struct HasHeader<pcl::PointCloud<T>>: FalseType {};
-
-template<typename T>
-struct TimeStamp<pcl::PointCloud<T>>
-{
-  // This specialization could be dangerous, but it's the best I can do.
-  // If this TimeStamp struct is destroyed before they are done with the
-  // pointer returned by the first functions may go out of scope, but there
-  // isn't a lot I can do about that. This is a good reason to refuse to
-  // returning pointers like this...
-  static ros::Time * pointer(typename pcl::PointCloud<T> & m)
-  {
-    header_.reset(new std_msgs::Header());
-    pcl_conversions::fromPCL(m.header, *(header_));
-    return &(header_->stamp);
-  }
-  static ros::Time const * pointer(const typename pcl::PointCloud<T> & m)
-  {
-    header_const_.reset(new std_msgs::Header());
-    pcl_conversions::fromPCL(m.header, *(header_const_));
-    return &(header_const_->stamp);
-  }
-  static ros::Time value(const typename pcl::PointCloud<T> & m)
-  {
-    return pcl_conversions::fromPCL(m.header).stamp;
-  }
-
-private:
-  static boost::shared_ptr<std_msgs::Header> header_;
-  static boost::shared_ptr<std_msgs::Header> header_const_;
-};
-
-template<typename T>
-struct FrameId<pcl::PointCloud<T>>
-{
-  static std::string * pointer(pcl::PointCloud<T> & m) {return &m.header.frame_id;}
-  static std::string const * pointer(const pcl::PointCloud<T> & m) {return &m.header.frame_id;}
-  static std::string value(const pcl::PointCloud<T> & m) {return m.header.frame_id;}
-};
-
-}  // namespace message_traits
+//namespace message_traits
+//{
+//
+//template<class T>
+//struct MD5Sum<pcl::PointCloud<T>>
+//{
+//  static const char * value() {return MD5Sum<sensor_msgs::msg::PointCloud2>::value();}
+//  static const char * value(const pcl::PointCloud<T> &) {return value();}
+//
+//  static const uint64_t static_value1 = MD5Sum<sensor_msgs::msg::PointCloud2>::static_value1;
+//  static const uint64_t static_value2 = MD5Sum<sensor_msgs::msg::PointCloud2>::static_value2;
+//
+//  // If the definition of sensor_msgs/PointCloud2 changes, we'll get a compile error here.
+//  ROS_STATIC_ASSERT(static_value1 == 0x1158d486dd51d683ULL);
+//  ROS_STATIC_ASSERT(static_value2 == 0xce2f1be655c3c181ULL);
+//};
+//
+//template<typename T>
+//struct DataType<pcl::PointCloud<T>>
+//{
+//  static const char * value() {return DataType<sensor_msgs::msg::PointCloud2>::value();}
+//  static const char * value(const pcl::PointCloud<T> &) {return value();}
+//};
+//
+//template<typename T>
+//struct Definition<pcl::PointCloud<T>>
+//{
+//  static const char * value() {return Definition<sensor_msgs::msg::PointCloud2>::value();}
+//  static const char * value(const pcl::PointCloud<T> &) {return value();}
+//};
+//
+//// pcl point clouds message don't have a ROS compatible header
+//// the specialized meta functions below (TimeStamp and FrameId)
+//// can be used to get the header data.
+//template<typename T>
+//struct HasHeader<pcl::PointCloud<T>>: FalseType {};
+//
+//template<typename T>
+//struct TimeStamp<pcl::PointCloud<T>>
+//{
+//  // This specialization could be dangerous, but it's the best I can do.
+//  // If this TimeStamp struct is destroyed before they are done with the
+//  // pointer returned by the first functions may go out of scope, but there
+//  // isn't a lot I can do about that. This is a good reason to refuse to
+//  // returning pointers like this...
+//  static ros::Time * pointer(typename pcl::PointCloud<T> & m)
+//  {
+//    header_.reset(new std_msgs::Header());
+//    pcl_conversions::fromPCL(m.header, *(header_));
+//    return &(header_->stamp);
+//  }
+//  static ros::Time const * pointer(const typename pcl::PointCloud<T> & m)
+//  {
+//    header_const_.reset(new std_msgs::Header());
+//    pcl_conversions::fromPCL(m.header, *(header_const_));
+//    return &(header_const_->stamp);
+//  }
+//  static ros::Time value(const typename pcl::PointCloud<T> & m)
+//  {
+//    return pcl_conversions::fromPCL(m.header).stamp;
+//  }
+//
+//private:
+//  static boost::shared_ptr<std_msgs::Header> header_;
+//  static boost::shared_ptr<std_msgs::Header> header_const_;
+//};
+//
+//template<typename T>
+//struct FrameId<pcl::PointCloud<T>>
+//{
+//  static std::string * pointer(pcl::PointCloud<T> & m) {return &m.header.frame_id;}
+//  static std::string const * pointer(const pcl::PointCloud<T> & m) {return &m.header.frame_id;}
+//  static std::string value(const pcl::PointCloud<T> & m) {return m.header.frame_id;}
+//};
+//
+//}  // namespace message_traits
 
 namespace serialization
 {
+
+template<typename T>
+struct Serializer;
+
 template<typename T>
 struct Serializer<pcl::PointCloud<T>>
 {
@@ -264,14 +270,14 @@ struct Serializer<pcl::PointCloud<T>>
   template<typename Stream>
   inline static void read(Stream & stream, pcl::PointCloud<T> & m)
   {
-    std_msgs::Header header;
+    std_msgs::msg::Header header;
     stream.next(header);
     pcl_conversions::toPCL(header, m.header);
     stream.next(m.height);
     stream.next(m.width);
 
     /// @todo Check that fields haven't changed!
-    std::vector<sensor_msgs::PointField> fields;
+    std::vector<sensor_msgs::msg::PointField> fields;
     stream.next(fields);
 
     // Construct field mapping if deserializing for the first time

@@ -39,8 +39,8 @@
 #define PCL_ROS__IO__CONCATENATE_DATA_HPP_
 
 // ROS includes
-#include <tf/transform_listener.h>
-#include <nodelet_topic_tools/nodelet_lazy.h>
+#include <tf2_ros/transform_listener.h>
+//#include <nodelet_topic_tools/nodelet_lazy.h>
 #include <message_filters/subscriber.h>
 #include <message_filters/synchronizer.h>
 #include <message_filters/pass_through.h>
@@ -48,6 +48,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <string>
 #include <vector>
+#include <pcl_ros/nodelet_lazy.h>
 
 namespace pcl_ros
 {
@@ -59,10 +60,10 @@ namespace sync_policies = message_filters::sync_policies;
   * PointCloud output message.
   * \author Radu Bogdan Rusu
   */
-class PointCloudConcatenateDataSynchronizer : public nodelet_topic_tools::NodeletLazy
+class PointCloudConcatenateDataSynchronizer : public NodeletLazy
 {
 public:
-  typedef sensor_msgs::PointCloud2 PointCloud2;
+  typedef sensor_msgs::msg::PointCloud2 PointCloud2;
   typedef PointCloud2::Ptr PointCloud2Ptr;
   typedef PointCloud2::ConstPtr PointCloud2ConstPtr;
 
@@ -85,7 +86,7 @@ public:
 
 private:
   /** \brief The output PointCloud publisher. */
-  ros::Publisher pub_output_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_output_;
 
   /** \brief The maximum number of messages that we can store in the queue. */
   int maximum_queue_size_;

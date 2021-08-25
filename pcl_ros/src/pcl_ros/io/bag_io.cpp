@@ -43,18 +43,18 @@
 bool
 pcl_ros::BAGReader::open(const std::string & file_name, const std::string & topic_name)
 {
-  try {
-    bag_.open(file_name, rosbag::bagmode::Read);
-    view_.addQuery(bag_, rosbag::TopicQuery(topic_name));
-
-    if (view_.size() == 0) {
-      return false;
-    }
-
-    it_ = view_.begin();
-  } catch (rosbag::BagException & e) {
-    return false;
-  }
+//  try {
+//    bag_.open(file_name, rosbag::bagmode::Read);
+//    view_.addQuery(bag_, rosbag::TopicQuery(topic_name));
+//
+//    if (view_.size() == 0) {
+//      return false;
+//    }
+//
+//    it_ = view_.begin();
+//  } catch (rosbag::BagException & e) {
+//    return false;
+//  }
   return true;
 }
 
@@ -62,52 +62,52 @@ pcl_ros::BAGReader::open(const std::string & file_name, const std::string & topi
 void
 pcl_ros::BAGReader::onInit()
 {
-  boost::shared_ptr<ros::NodeHandle> pnh_;
-  pnh_.reset(new ros::NodeHandle(getMTPrivateNodeHandle()));
-  // ---[ Mandatory parameters
-  if (!pnh_->getParam("file_name", file_name_)) {
-    NODELET_ERROR("[onInit] Need a 'file_name' parameter to be set before continuing!");
-    return;
-  }
-  if (!pnh_->getParam("topic_name", topic_name_)) {
-    NODELET_ERROR("[onInit] Need a 'topic_name' parameter to be set before continuing!");
-    return;
-  }
-  // ---[ Optional parameters
-  int max_queue_size = 1;
-  pnh_->getParam("publish_rate", publish_rate_);
-  pnh_->getParam("max_queue_size", max_queue_size);
-
-  ros::Publisher pub_output = pnh_->advertise<sensor_msgs::PointCloud2>("output", max_queue_size);
-
-  NODELET_DEBUG(
-    "[onInit] Nodelet successfully created with the following parameters:\n"
-    " - file_name    : %s\n"
-    " - topic_name   : %s",
-    file_name_.c_str(), topic_name_.c_str());
-
-  if (!open(file_name_, topic_name_)) {
-    return;
-  }
-  PointCloud output;
-  output_ = boost::make_shared<PointCloud>(output);
-  output_->header.stamp = ros::Time::now();
-
-  // Continous publishing enabled?
-  while (pnh_->ok()) {
-    PointCloudConstPtr cloud = getNextCloud();
-    NODELET_DEBUG(
-      "Publishing data (%d points) on topic %s in frame %s.",
-      output_->width * output_->height, pnh_->resolveName(
-        "output").c_str(), output_->header.frame_id.c_str());
-    output_->header.stamp = ros::Time::now();
-
-    pub_output.publish(output_);
-
-    ros::Duration(publish_rate_).sleep();
-    ros::spinOnce();
-  }
+//  boost::shared_ptr<ros::NodeHandle> pnh_;
+//  pnh_.reset(new ros::NodeHandle(getMTPrivateNodeHandle()));
+//  // ---[ Mandatory parameters
+//  if (!pnh_->getParam("file_name", file_name_)) {
+//    NODELET_ERROR("[onInit] Need a 'file_name' parameter to be set before continuing!");
+//    return;
+//  }
+//  if (!pnh_->getParam("topic_name", topic_name_)) {
+//    NODELET_ERROR("[onInit] Need a 'topic_name' parameter to be set before continuing!");
+//    return;
+//  }
+//  // ---[ Optional parameters
+//  int max_queue_size = 1;
+//  pnh_->getParam("publish_rate", publish_rate_);
+//  pnh_->getParam("max_queue_size", max_queue_size);
+//
+//  ros::Publisher pub_output = pnh_->advertise<sensor_msgs::PointCloud2>("output", max_queue_size);
+//
+//  NODELET_DEBUG(
+//    "[onInit] Nodelet successfully created with the following parameters:\n"
+//    " - file_name    : %s\n"
+//    " - topic_name   : %s",
+//    file_name_.c_str(), topic_name_.c_str());
+//
+//  if (!open(file_name_, topic_name_)) {
+//    return;
+//  }
+//  PointCloud output;
+//  output_ = boost::make_shared<PointCloud>(output);
+//  output_->header.stamp = ros::Time::now();
+//
+//  // Continous publishing enabled?
+//  while (pnh_->ok()) {
+//    PointCloudConstPtr cloud = getNextCloud();
+//    NODELET_DEBUG(
+//      "Publishing data (%d points) on topic %s in frame %s.",
+//      output_->width * output_->height, pnh_->resolveName(
+//        "output").c_str(), output_->header.frame_id.c_str());
+//    output_->header.stamp = ros::Time::now();
+//
+//    pub_output.publish(output_);
+//
+//    ros::Duration(publish_rate_).sleep();
+//    ros::spinOnce();
+//  }
 }
 
 typedef pcl_ros::BAGReader BAGReader;
-PLUGINLIB_EXPORT_CLASS(BAGReader, nodelet::Nodelet);
+//PLUGINLIB_EXPORT_CLASS(BAGReader, nodelet::Nodelet);

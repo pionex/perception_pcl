@@ -40,22 +40,22 @@
 
 // PCL includes
 #include <pcl/features/feature.h>
-#include <pcl_msgs/PointIndices.h>
+#include <pcl_msgs/msg/point_indices.hpp>
 
 #include <message_filters/pass_through.h>
 
 // Dynamic reconfigure
-#include <dynamic_reconfigure/server.h>
+//#include <dynamic_reconfigure/server.h>
 
 // PCL conversions
 #include <pcl_conversions/pcl_conversions.h>
 
-#include "pcl_ros/pcl_nodelet.hpp"
-#include "pcl_ros/FeatureConfig.hpp"
+//#include "pcl_ros/pcl_nodelet.hpp"
+//#include "pcl_ros/FeatureConfig.hpp"
 
 namespace pcl_ros
 {
-namespace sync_policies = message_filters::sync_policies;
+//namespace sync_policies = message_filters::sync_policies;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -64,7 +64,7 @@ namespace sync_policies = message_filters::sync_policies;
   * are applicable to all features are defined here as static methods.
   * \author Radu Bogdan Rusu
   */
-class Feature : public PCLNodelet
+class Feature : rclcpp::Node
 {
 public:
   typedef pcl::KdTree<pcl::PointXYZ> KdTree;
@@ -78,8 +78,8 @@ public:
   typedef pcl::IndicesConstPtr IndicesConstPtr;
 
   /** \brief Empty constructor. */
-  Feature()
-  : /*input_(), indices_(), surface_(), */ tree_(), k_(0), search_radius_(0),
+  Feature(const rclcpp::NodeOptions & options)
+  : Node("Feature", options), /*input_(), indices_(), surface_(), */ tree_(), k_(0), search_radius_(0),
     use_surface_(false), spatial_locator_type_(-1)
   {}
 
@@ -106,10 +106,12 @@ protected:
 
   // ROS nodelet attributes
   /** \brief The surface PointCloud subscriber filter. */
-  message_filters::Subscriber<PointCloudIn> sub_surface_filter_;
+  //message_filters::Subscriber<PointCloudIn> sub_surface_filter_;
+  rclcpp::Subscription<PointCloudIn>::SharedPtr sub_surface_filter_;
 
   /** \brief The input PointCloud subscriber. */
-  ros::Subscriber sub_input_;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_input_;
+  //ros::Subscriber sub_input_;
 
   /** \brief Set to true if the nodelet needs to listen for incoming point
    * clouds representing the search surface.
@@ -124,10 +126,10 @@ protected:
   int spatial_locator_type_;
 
   /** \brief Pointer to a dynamic reconfigure service. */
-  boost::shared_ptr<dynamic_reconfigure::Server<FeatureConfig>> srv_;
+  //boost::shared_ptr<dynamic_reconfigure::Server<FeatureConfig>> srv_;
 
   /** \brief Child initialization routine. Internal method. */
-  virtual bool childInit(ros::NodeHandle & nh) = 0;
+  //virtual bool childInit(ros::NodeHandle & nh) = 0;
 
   /** \brief Publish an empty point cloud of the feature output type. */
   virtual void emptyPublish(const PointCloudInConstPtr & cloud) = 0;
@@ -142,11 +144,11 @@ protected:
     * \param config the config object
     * \param level the dynamic reconfigure level
     */
-  void config_callback(FeatureConfig & config, uint32_t level);
+  rcl_interfaces::msg::SetParametersResult config_callback(const std::vector<rclcpp::Parameter> &parameters);
 
   /** \brief Null passthrough filter, used for pushing empty elements in the
     * synchronizer */
-  message_filters::PassThrough<PointIndices> nf_pi_;
+  message_filters::PassThrough<pcl::PointIndices> nf_pi_;
   message_filters::PassThrough<PointCloudIn> nf_pc_;
 
   /** \brief Input point cloud callback.
@@ -156,20 +158,20 @@ protected:
   inline void
   input_callback(const PointCloudInConstPtr & input)
   {
-    PointIndices indices;
+    pcl::PointIndices indices;
     indices.header.stamp = pcl_conversions::fromPCL(input->header).stamp;
     PointCloudIn cloud;
     cloud.header.stamp = input->header.stamp;
     nf_pc_.add(ros_ptr(cloud.makeShared()));
-    nf_pi_.add(boost::make_shared<PointIndices>(indices));
+    nf_pi_.add(boost::make_shared<pcl::PointIndices>(indices));
   }
 
 private:
   /** \brief Synchronized input, surface, and point indices.*/
-  boost::shared_ptr<message_filters::Synchronizer<sync_policies::ApproximateTime<PointCloudIn,
-    PointCloudIn, PointIndices>>> sync_input_surface_indices_a_;
-  boost::shared_ptr<message_filters::Synchronizer<sync_policies::ExactTime<PointCloudIn,
-    PointCloudIn, PointIndices>>> sync_input_surface_indices_e_;
+//  boost::shared_ptr<message_filters::Synchronizer<sync_policies::ApproximateTime<PointCloudIn,
+//    PointCloudIn, PointIndices>>> sync_input_surface_indices_a_;
+//  boost::shared_ptr<message_filters::Synchronizer<sync_policies::ExactTime<PointCloudIn,
+//    PointCloudIn, PointIndices>>> sync_input_surface_indices_e_;
 
   /** \brief Nodelet initialization routine. */
   virtual void onInit();

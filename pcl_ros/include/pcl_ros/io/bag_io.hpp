@@ -39,9 +39,9 @@
 #define PCL_ROS__IO__BAG_IO_HPP_
 
 #include <pcl_ros/pcl_nodelet.hpp>
-#include <sensor_msgs/PointCloud2.h>
-#include <rosbag/bag.h>
-#include <rosbag/view.h>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+//#include <rosbag/bag.h>
+//#include <rosbag/view.h>
 #include <string>
 
 namespace pcl_ros
@@ -50,10 +50,10 @@ namespace pcl_ros
 /** \brief BAG PointCloud file format reader.
   * \author Radu Bogdan Rusu
   */
-class BAGReader : public nodelet::Nodelet
+class BAGReader //: public nodelet::Nodelet
 {
 public:
-  typedef sensor_msgs::PointCloud2 PointCloud;
+  typedef sensor_msgs::msg::PointCloud2 PointCloud;
   typedef PointCloud::Ptr PointCloudPtr;
   typedef PointCloud::ConstPtr PointCloudConstPtr;
 
@@ -75,10 +75,10 @@ public:
   inline PointCloudConstPtr
   getNextCloud()
   {
-    if (it_ != view_.end()) {
-      output_ = it_->instantiate<sensor_msgs::PointCloud2>();
-      ++it_;
-    }
+//    if (it_ != view_.end()) {
+//      output_ = it_->instantiate<sensor_msgs::msg::PointCloud2>();
+//      ++it_;
+//    }
     return output_;
   }
 
@@ -92,7 +92,7 @@ public:
   inline void
   close()
   {
-    bag_.close();
+    //bag_.close();
   }
 
   /** \brief Nodelet initialization routine. */
@@ -103,13 +103,13 @@ private:
   double publish_rate_;
 
   /** \brief The BAG object. */
-  rosbag::Bag bag_;
+  //rosbag::Bag bag_;
 
   /** \brief The BAG view object. */
-  rosbag::View view_;
+  //rosbag::View view_;
 
   /** \brief The BAG view iterator object. */
-  rosbag::View::iterator it_;
+  //rosbag::View::iterator it_;
 
   /** \brief The name of the topic that contains the PointCloud data. */
   std::string topic_name_;
