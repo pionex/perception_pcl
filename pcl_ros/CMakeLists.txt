@@ -23,15 +23,12 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(pluginlib REQUIRED)
 find_package(rclcpp_components REQUIRED)
+#find_package(Boost REQUIRED COMPONENTS system program_options filesystem python38)
+#find_package(VTK REQUIRED)
+find_package(lib_perception REQUIRED)
 
 include_directories(include)
 
-#include_directories(
-  #include
-  #${PCL_INCLUDE_DIRS}
-  #${pluginlib_INCLUDE_DIRS}
-  #${sensor_msgs_INCLUDE_DIRS}
-#)
 
 set(dependencies
         pcl_conversions
@@ -45,6 +42,9 @@ set(dependencies
         PCL
         pluginlib
         pcl_msgs
+        lib_perception
+
+
         )
 
 ### Nodelets
@@ -107,6 +107,7 @@ add_library(pcl_ros_filters SHARED
 #  src/pcl_ros/filters/extract_indices.cpp
   src/pcl_ros/filters/filter.cpp
   src/pcl_ros/filters/passthrough.cpp
+  src/pcl_ros/filters/PerceptionPipeline.cpp
 #  src/pcl_ros/filters/project_inliers.cpp
 #  src/pcl_ros/filters/radius_outlier_removal.cpp
 #  src/pcl_ros/filters/statistical_outlier_removal.cpp
