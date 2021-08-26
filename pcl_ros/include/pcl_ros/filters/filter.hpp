@@ -60,14 +60,40 @@ public:
   typedef pcl::IndicesPtr IndicesPtr;
   typedef pcl::IndicesConstPtr IndicesConstPtr;
 
-  Filter(const std::string &node_name, const rclcpp::NodeOptions& options) : PCLNodelet(node_name, options), tf_buffer_(this->get_clock()),
-                                                                             tf_listener_(tf_buffer_) { onInit(); }
+  Filter(const std::string &node_name, const rclcpp::NodeOptions& options) : PCLNodelet(node_name, options), got_initial_params_(false)
+
+   {
+     RCLCPP_INFO(this->get_logger(), "Filter ctor");
+
+     this->declare_parameter<double>("filter_limit_min", std::numeric_limits<double>::min());
+     this->declare_parameter<double>("filter_limit_max", std::numeric_limits<double>::max());
+     this->declare_parameter<std::string>("filter_field_name", "z");
+     this->declare_parameter<bool>("keep_organized", false);
+     this->declare_parameter<bool>("negative", false);
+     this->declare_parameter<std::string>("input_frame", "");
+     this->declare_parameter<std::string>("output_frame", "");
+
+     this->get_parameter<double>("filter_limit_min", filter_limit_min_);
+     this->get_parameter<double>("filter_limit_max", filter_limit_max_);
+     this->get_parameter<std::string>("filter_field_name", filter_field_name_);
+     this->get_parameter<bool>("keep_organized", filter_keep_organized_);
+     this->get_parameter<bool>("negative", filter_limit_negative_);
+     this->get_parameter<std::string>("input_frame", tf_input_frame_);
+     this->get_parameter<std::string>("output_frame", tf_output_frame_);
+
+     param_callback_handle_ = this->add_on_set_parameters_callback(std::bind(&Filter::parametersCallback, this, std::placeholders::_1));
+
+     subscribe();
+
+     pub_output_ = this->create_publisher<PointCloud2>("filter_output",  10); //max_queue_size_);
+     //timer_ = this->create_wall_timer(std::chrono::seconds(1), [this]() -> void { RCLCPP_INFO(this->get_logger(), "Staying alive"); });
+   }
 
 protected:
   /** \brief The input PointCloud subscriber. */
-  rclcpp::Subscription<PointCloud2>::SharedPtr sub_input_;
-
-  message_filters::Subscriber<PointCloud2> sub_input_filter_;
+//  rclcpp::Subscription<PointCloud2>::SharedPtr sub_input_;
+//
+//  message_filters::Subscriber<PointCloud2> sub_input_filter_;
 
   /** \brief The desired user filter field name. */
   std::string filter_field_name_;
@@ -85,8 +111,8 @@ protected:
 
   bool filter_keep_organized_;
 
-  bool use_indices_;
-  int max_queue_size_;
+  //bool use_indices_;
+  //int max_queue_size_;
 
   /** \brief The input TF frame the data should be transformed into,
     * if input.header.frame_id is different.
@@ -101,12 +127,15 @@ protected:
     */
   std::string tf_output_frame_;
 
-  tf2_ros::Buffer tf_buffer_;
-  tf2_ros::TransformListener tf_listener_;
-  rclcpp::Publisher<PointCloud2>::SharedPtr pub_output_;
+//  tf2_ros::Buffer tf_buffer_;
+//  tf2_ros::TransformListener tf_listener_;
+  //rclcpp::Publisher<PointCloud2>::SharedPtr pub_output_;
 
   /** \brief Internal mutex. */
   std::mutex mutex_;
+
+  std::atomic_bool got_initial_params_;
+  rclcpp::TimerBase::SharedPtr timer_;
 
   /** \brief Child initialization routine.
     * \param nh ROS node handle

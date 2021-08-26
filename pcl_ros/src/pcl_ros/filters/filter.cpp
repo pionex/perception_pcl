@@ -116,7 +116,11 @@ void
 pcl_ros::Filter::subscribe()
 {
   // If we're supposed to look for PointIndices (indices)
-  if (use_indices_) {
+  //use_indices_ = false; // todo - hard coding this until fix race condition with params
+
+  if (use_indices_)
+  {
+    RCLCPP_INFO(this->get_logger(), "Complex Sub");
     // Subscribe to the input using a filter
 
     sub_input_filter_.subscribe(this, "input"); //, max_queue_size_);
@@ -135,14 +139,16 @@ pcl_ros::Filter::subscribe()
       sync_input_indices_e_->connectInput(sub_input_filter_, sub_indices_filter_);
       sync_input_indices_e_->registerCallback(std::bind(&Filter::input_indices_callback, this, std::placeholders::_1, std::placeholders::_2));
     }
-  } else
+  }
+  else
   {
+    RCLCPP_INFO(this->get_logger(), "Basic Sub");
      //Subscribe in an old fashion to input only (no filters)
      rclcpp::QoS depth_qos(10);
      depth_qos.keep_last(10);
      depth_qos.best_effort();
      depth_qos.durability_volatile();
-     sub_input_ = this->create_subscription<PointCloud2>("output", 10, std::bind(&Filter::input_cloud_callback, this, std::placeholders::_1));;
+     sub_input_ = this->create_subscription<PointCloud2>("input", 10, std::bind(&Filter::input_cloud_callback, this, std::placeholders::_1));;
   }
 }
 
@@ -162,13 +168,7 @@ pcl_ros::Filter::unsubscribe()
 void
 pcl_ros::Filter::onInit()
 {
-  subscribe();
-  pub_output_ = this->create_publisher<PointCloud2>("filter_output",  10); //max_queue_size_);
 
-  param_callback_handle_ = this->add_on_set_parameters_callback(std::bind(&Filter::parametersCallback, this, std::placeholders::_1));
-
-  NODELET_DEBUG("[%s::onInit] Nodelet successfully created.", getName().c_str());
-  RCLCPP_INFO(this->get_logger(), "Nodelet Created!!!!!");
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -177,6 +177,8 @@ rcl_interfaces::msg::SetParametersResult pcl_ros::Filter::parametersCallback(
     {
     // The following parameters are updated automatically for all PCL_ROS Nodelet Filters as they are
     // inexistent in PCL
+
+    RCLCPP_INFO(this->get_logger(), "In Params Callback");
 
       for (const auto &p : parameters)
       {

@@ -103,8 +103,42 @@ public:
 
   /** \brief Empty constructor. */
   PCLNodelet(const std::string &node_name, const rclcpp::NodeOptions& options)
-  : Node(node_name, options), use_indices_(false), latched_indices_(false),
-    max_queue_size_(3), approximate_sync_(false){ onInit(); }
+  : Node(node_name, options), use_indices_(false), latched_indices_(false), max_queue_size_(3), approximate_sync_(false), tf_buffer_(this->get_clock()),
+    tf_listener_(tf_buffer_)
+    {
+      RCLCPP_INFO(this->get_logger(), "nodelet ctor");
+      const int kMaxQueueSize = 10;
+      const bool kLatchedIndices = false;
+      const bool kUseIndices = false;
+      const bool kApproximateSync = true;
+
+      this->declare_parameter<int>("max_queue_size", kMaxQueueSize);
+      this->declare_parameter<bool>("use_indices", kUseIndices);
+      this->declare_parameter<bool>("latched_indices", kLatchedIndices);
+      this->declare_parameter<bool>("approximate_sync", kApproximateSync);
+
+      // Parameters that we care about only at startup
+      this->get_parameter("max_queue_size", max_queue_size_);
+//
+//    // ---[ Optional parameters
+    this->get_parameter("use_indices", use_indices_);
+    RCLCPP_INFO(this->get_logger(), "Use Indices: %d", use_indices_);
+    this->get_parameter("latched_indices", latched_indices_);
+    this->get_parameter("approximate_sync", approximate_sync_);
+
+
+    NODELET_DEBUG(
+        "[%s::onInit] PCL Nodelet successfully created with the following parameters:\n"
+        " - approximate_sync : %s\n"
+        " - use_indices      : %s\n"
+        " - latched_indices  : %s\n"
+        " - max_queue_size   : %d",
+        getName().c_str(),
+        (approximate_sync_) ? "true" : "false",
+        (use_indices_) ? "true" : "false",
+        (latched_indices_) ? "true" : "false",
+        max_queue_size_);
+    }
 
 protected:
   /** \brief Set to true if point indices are used.
@@ -127,6 +161,9 @@ protected:
    **/
   bool latched_indices_;
 
+   /** \brief The message filter subscriber for without filters. */
+  rclcpp::Subscription<PointCloud2>::SharedPtr sub_input_;
+
   /** \brief The message filter subscriber for PointCloud2. */
   message_filters::Subscriber<PointCloud2> sub_input_filter_;
 
@@ -145,7 +182,8 @@ protected:
   bool approximate_sync_;
 
   /** \brief TF listener object. */
-  std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+  tf2_ros::Buffer tf_buffer_;
+  tf2_ros::TransformListener tf_listener_;
 
 
 
@@ -236,43 +274,6 @@ protected:
   virtual void subscribe() {}
   virtual void unsubscribe() {}
 
-  /** \brief Nodelet initialization routine. Reads in global parameters used by all nodelets. */
-  virtual void
-  onInit()
-  {
-    //nodelet_topic_tools::NodeletLazy::onInit();
-
-    const int kMaxQueueSize = 10;
-    const bool kLatchedIndices = false;
-    const bool kUseIndices = false;
-    const bool kApproximateSync = true;
-
-    this->declare_parameter<int>("max_queue_size", kMaxQueueSize);
-    this->declare_parameter<bool>("use_indices", kUseIndices);
-    this->declare_parameter<bool>("latched_indices", kLatchedIndices);
-    this->declare_parameter<bool>("approximate_sync", kApproximateSync);
-
-    // Parameters that we care about only at startup
-    this->get_parameter("max_queue_size", max_queue_size_);
-//
-//    // ---[ Optional parameters
-    this->get_parameter("use_indices", use_indices_);
-    this->get_parameter("latched_indices", latched_indices_);
-    this->get_parameter("approximate_sync", approximate_sync_);
-
-
-    NODELET_DEBUG(
-      "[%s::onInit] PCL Nodelet successfully created with the following parameters:\n"
-      " - approximate_sync : %s\n"
-      " - use_indices      : %s\n"
-      " - latched_indices  : %s\n"
-      " - max_queue_size   : %d",
-      getName().c_str(),
-      (approximate_sync_) ? "true" : "false",
-      (use_indices_) ? "true" : "false",
-      (latched_indices_) ? "true" : "false",
-      max_queue_size_);
-  }
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

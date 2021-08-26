@@ -43,16 +43,7 @@
 bool
 pcl_ros::PassThrough::child_init()
 {
-  this->declare_parameter<double>("filter_limit_min", std::numeric_limits<double>::min());
-  this->declare_parameter<double>("filter_limit_max", std::numeric_limits<double>::max());
-  this->declare_parameter<std::string>("filter_field_name", "z");
-  this->declare_parameter<bool>("keep_organized", false);
-  this->declare_parameter<bool>("negative", false);
-  this->declare_parameter<std::string>("input_frame", "");
-  this->declare_parameter<std::string>("output_frame", "");
-
-
-  param_callback_handle_ = this->add_on_set_parameters_callback(std::bind(&PassThrough::parametersCallback, this, std::placeholders::_1));
+  //param_callback_handle_ = this->add_on_set_parameters_callback(std::bind(&PassThrough::parametersCallback, this, std::placeholders::_1));
   return true;
 }
 
@@ -91,6 +82,7 @@ rcl_interfaces::msg::SetParametersResult pcl_ros::PassThrough::parametersCallbac
       impl_.setKeepOrganized(filter_keep_organized_);
       impl_.setNegative(filter_limit_negative_);
 
+      got_initial_params_ = true;
     }
 
   rcl_interfaces::msg::SetParametersResult result;

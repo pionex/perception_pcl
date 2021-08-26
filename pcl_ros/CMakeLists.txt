@@ -222,6 +222,9 @@ install(
 install(DIRECTORY plugins samples
   DESTINATION share/${PROJECT_NAME})
 
+install(DIRECTORY launch 
+  DESTINATION share/${PROJECT_NAME})
+
 ament_export_include_directories(include)
 ament_export_libraries(pcl_ros_tf)
 ament_export_dependencies(${dependencies})
