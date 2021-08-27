@@ -5,6 +5,7 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/sync_policies/approximate_time.h>
+#include <message_filters/time_synchronizer.h>
 #include <pcl_msgs/msg/point_indices.hpp>
 #include <mutex>
 
@@ -37,13 +38,14 @@ class NormalsVisualizer : public Visualizer
                                                                                sensor_msgs::msg::PointCloud2>>>
       sync_clouds_a_;
 
+
   sensor_msgs::msg::PointCloud2::ConstSharedPtr cloud_msg_;
   sensor_msgs::msg::PointCloud2::ConstSharedPtr normals_cloud_msg_;
 
   pcl::PCLPointCloud2Ptr cloud2_;
   pcl::PCLPointCloud2Ptr normals_cloud2_;
-  NormalsPointCloudConstPtr normal_cloud_;
-  PointCloudSTDConstPtr cloud_;
+  NormalsPointCloudPtr normals_cloud_;
+  PointCloudSTDPtr cloud_;
   int max_queue_size_ = 10;
   std::mutex mutex_;
   rclcpp::TimerBase::SharedPtr timer_;

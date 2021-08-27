@@ -7,6 +7,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <pcl_msgs/msg/point_indices.hpp>
 #include <mutex>
+#include <g3log/g3log.hpp>
 
 namespace pcl_utils
 {
@@ -21,7 +22,7 @@ class NormalsGenerator
 
 
  private:
-  void CloudCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr cloud);
+  void CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud);
   void ProcessCloud();
 
   rclcpp::Node::SharedPtr node_;
@@ -31,8 +32,9 @@ class NormalsGenerator
 
   std::mutex mutex_;
   rclcpp::TimerBase::SharedPtr timer_;
-  sensor_msgs::msg::PointCloud2::ConstSharedPtr input_cloud_;
+  sensor_msgs::msg::PointCloud2::SharedPtr input_cloud_;
   sensor_msgs::msg::PointCloud2 output_normals_cloud_;
   std::atomic_bool cloud_processed_;
+  std::unique_ptr<g3::LogWorker> log_worker_;
 };
 }

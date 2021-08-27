@@ -28,27 +28,35 @@ def generate_launch_description():
             executable='component_container',
             composable_node_descriptions=[
                 ComposableNode(
+                    package='pcl_utils',
+                    plugin='pcl_utils::NormalsVisualizer',
+                    name='visualizer',
+                    remappings=[
+                        ('cloud_input', 'cloud_output'),
+                        ('normals_cloud_input', 'normals_cloud_output')
+                    ]),
+                ComposableNode(
                     package='pcl_ros',
                     plugin='pcl_ros::PCDReader',
                     name='pcdreader',
                     parameters = [
-                      {"file_name": "/home/perception/VagrantProjects/Clouds/IC/ContainerUnload_19-03-20_19-29-10_Gripper.pcd",
-                        "tf_frame": "map"
-                      }                      
+                        {"file_name": "/home/perception/VagrantProjects/Clouds/IC/ContainerUnload_19-03-20_19-29-10_Gripper.pcd",
+                         "tf_frame": "map"
+                         }
                     ]),
                 ComposableNode(
-                    package='pcl_ros',
-                    plugin='pcl_ros::PassThrough',
-                    name='passthrough',
-                    parameters = [
-                      {
-                        "file_name": "/home/perception/VagrantProjects/Clouds/IC/ContainerUnload_19-03-20_19-29-10_Gripper.pcd",
-                        "tf_frame": "map",
-						"use_indices":  False
-                      }                      
-                    ],
+                    package='pcl_utils',
+                    plugin='pcl_utils::NormalsGenerator',
+                    name='normalsgenerator',
+#                    parameters = [
+#                      {
+#                        "file_name": "/home/perception/VagrantProjects/Clouds/IC/ContainerUnload_19-03-20_19-29-10_Gripper.pcd",
+#                        "tf_frame": "map",
+#						 "use_indices":  False
+#                      }
+#                    ],
                     remappings=[
-                          ('input', 'output')
+                          ('raw_cloud', 'output')
                    ]
                   )
             ],

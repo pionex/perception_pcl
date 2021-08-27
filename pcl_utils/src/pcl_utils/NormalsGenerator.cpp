@@ -1,6 +1,10 @@
 #include "pcl_utils/NormalsGenerator.h"
 #include <pcl_conversions/pcl_conversions.h>
 #include <Perception/Implementations/NormalCloudProvider.h>
+#include <Perception/Implementations/ConfigurationProvider.h>
+#include <g3log/logworker.hpp>
+
+
 
 pcl_utils::NormalsGenerator::NormalsGenerator(const rclcpp::NodeOptions &options) : cloud_processed_(false)
 {
@@ -10,23 +14,42 @@ pcl_utils::NormalsGenerator::NormalsGenerator(const rclcpp::NodeOptions &options
                                                                             std::bind(&NormalsGenerator::CloudCallback,
                                                                                       this,
                                                                                       std::placeholders::_1));
-  cloud_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("cloud_input", 10);
-  normals_cloud_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("normals_cloud_input", 10);
+  cloud_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("cloud_output", 10);
+  normals_cloud_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("normals_cloud_output", 10);
   timer_ = node_->create_wall_timer(std::chrono::milliseconds(100), [this]()
   {
     ProcessCloud();
     if (input_cloud_)
     {
+      input_cloud_->header.stamp = node_->get_clock()->now();
+      output_normals_cloud_.header.stamp = input_cloud_->header.stamp;
+
       cloud_publisher_->publish(*input_cloud_);
       normals_cloud_publisher_->publish(output_normals_cloud_);
     }
   });
+
+  using namespace g3;
+  //g3::overrideSetupSignals({{SIGABRT, "SIGABRT"}, {SIGFPE, "SIGFPE"}, {SIGILL, "SIGILL"}});
+  log_worker_ = LogWorker::createLogWorker();
+  //systemd_sink_ = log_worker_->addSink(std::make_unique<SystemdSink>(), &SystemdSink::ReceiveLogMessage);
+  initializeLogging(log_worker_.get());
 }
 
 void pcl_utils::NormalsGenerator::ProcessCloud()
 {
   if (!cloud_processed_ && input_cloud_)
   {
+    #define NORMAL_MAX_DEPTH_CHANGE 0.005f
+    #define NORMAL_SMOOTHING 20.0f
+    auto config_provider = std::make_shared<ConfigurationProvider>();
+    AppConfig::SetProvider(config_provider);
+    static const NormalCloudProvider::Config config_NormalCloudProvider{
+        .MaxDepthChange = NORMAL_MAX_DEPTH_CHANGE,
+        .NormalSmoothing = NORMAL_SMOOTHING
+    };
+    AppConfig::SetConfig<NormalCloudProvider>(config_NormalCloudProvider);
+
     CloudData data;
     pcl::PCLPointCloud2 cld;
     pcl_conversions::toPCL(*input_cloud_, cld);
@@ -41,10 +64,17 @@ void pcl_utils::NormalsGenerator::ProcessCloud()
   }
 }
 
-void pcl_utils::NormalsGenerator::CloudCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr cloud)
+void pcl_utils::NormalsGenerator::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud)
 {
   {
     std::lock_guard<std::mutex> lock(mutex_);
+
+    if (input_cloud_)
+    {
+      // set the timestamp of the old cloud to incoming so that when we compare below, we don't care if the stamps are different
+      input_cloud_->header.stamp = cloud->header.stamp;
+    }
+
     if (!input_cloud_ || (input_cloud_ && *cloud != *input_cloud_))
     {
       input_cloud_ = cloud;

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(pcl_utils)
 
 if(NOT CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 17)
+  set(CMAKE_CXX_STANDARD 20)
 endif()
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic -fPIC)
@@ -68,7 +68,7 @@ ament_target_dependencies(pcl_utils
 rclcpp_components_register_nodes(pcl_utils "pcl_utils::NormalsVisualizer")
 rclcpp_components_register_nodes(pcl_utils "pcl_utils::NormalsGenerator")
 
-set(node_plugins "${node_plugins}pcl_utils::NormViz;$<TARGET_FILE:pcl_utils>\n")
+#set(node_plugins "${node_plugins}pcl_utils::NormViz;$<TARGET_FILE:pcl_utils>\n")
 
 
 #############
@@ -106,8 +106,8 @@ install(
   INCLUDES DESTINATION include
 )
 
-install(DIRECTORY plugins samples
-  DESTINATION share/${PROJECT_NAME})
+#install(DIRECTORY plugins samples
+#  DESTINATION share/${PROJECT_NAME})
 
 install(DIRECTORY launch 
   DESTINATION share/${PROJECT_NAME})
