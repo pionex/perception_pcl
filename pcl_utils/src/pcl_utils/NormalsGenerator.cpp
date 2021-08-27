@@ -16,6 +16,27 @@ pcl_utils::NormalsGenerator::NormalsGenerator(const rclcpp::NodeOptions &options
                                                                                       std::placeholders::_1));
   cloud_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("cloud_output", 10);
   normals_cloud_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("normals_cloud_output", 10);
+
+  rcl_interfaces::msg::ParameterDescriptor max_depth_descriptor;
+  rcl_interfaces::msg::FloatingPointRange max_depth_range;
+  max_depth_range.set__from_value(0.0f).set__to_value(10.0f).set__step(.1);
+  max_depth_descriptor.floating_point_range = {max_depth_range};
+
+  node_->declare_parameter<double>("normal_max_depth_change", NORMAL_MAX_DEPTH_CHANGE * 1000.0f, max_depth_descriptor);
+
+
+  rcl_interfaces::msg::ParameterDescriptor smoothing_descriptor;
+  rcl_interfaces::msg::FloatingPointRange smoothing_range;
+  smoothing_range.set__from_value(0.0f).set__to_value(50.0f).set__step(1.0f);
+  smoothing_descriptor.floating_point_range = {smoothing_range};
+
+  node_->declare_parameter<double>("normal_smoothing", NORMAL_SMOOTHING, smoothing_descriptor);
+
+  node_->get_parameter("normal_max_depth_change", normal_max_depth_change_);
+  node_->get_parameter("normal_smoothing", normal_smoothing_);
+
+  param_cb_handle_ = node_->add_on_set_parameters_callback(std::bind(&NormalsGenerator::ParametersCallback, this, std::placeholders::_1));
+
   timer_ = node_->create_wall_timer(std::chrono::milliseconds(100), [this]()
   {
     ProcessCloud();
@@ -36,17 +57,40 @@ pcl_utils::NormalsGenerator::NormalsGenerator(const rclcpp::NodeOptions &options
   initializeLogging(log_worker_.get());
 }
 
+rcl_interfaces::msg::SetParametersResult pcl_utils::NormalsGenerator::ParametersCallback(const std::vector<rclcpp::Parameter> &parameters)
+{
+  auto result = rcl_interfaces::msg::SetParametersResult();
+  result.successful = true;
+  result.reason = "success";
+
+  RCLCPP_INFO(node_->get_logger(), "Params Callback");
+
+  std::lock_guard<std::mutex> lock(mutex_);
+  {
+    for (const auto &p : parameters)
+    {
+      if (p.get_name() == "normal_max_depth_change")
+        normal_max_depth_change_ = p.as_double();
+      else if (p.get_name() == "normal_smoothing")
+        normal_smoothing_ = p.as_double();
+    }
+
+    cloud_processed_ = false;
+  }
+
+  return result;
+}
+
 void pcl_utils::NormalsGenerator::ProcessCloud()
 {
   if (!cloud_processed_ && input_cloud_)
   {
-    #define NORMAL_MAX_DEPTH_CHANGE 0.005f
-    #define NORMAL_SMOOTHING 20.0f
+    RCLCPP_INFO(node_->get_logger(), "Processing Cloud");
     auto config_provider = std::make_shared<ConfigurationProvider>();
     AppConfig::SetProvider(config_provider);
-    static const NormalCloudProvider::Config config_NormalCloudProvider{
-        .MaxDepthChange = NORMAL_MAX_DEPTH_CHANGE,
-        .NormalSmoothing = NORMAL_SMOOTHING
+    NormalCloudProvider::Config config_NormalCloudProvider{
+        .MaxDepthChange = static_cast<float>(normal_max_depth_change_ / 1000.0f),
+        .NormalSmoothing = static_cast<float>(normal_smoothing_)
     };
     AppConfig::SetConfig<NormalCloudProvider>(config_NormalCloudProvider);
 
@@ -80,6 +124,7 @@ void pcl_utils::NormalsGenerator::CloudCallback(const sensor_msgs::msg::PointClo
       input_cloud_ = cloud;
       cloud_processed_ = false;
     }
+
   }  // lock guard
 
 }

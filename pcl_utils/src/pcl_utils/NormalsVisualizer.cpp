@@ -58,9 +58,6 @@ void pcl_utils::NormalsVisualizer::NewCloudsCallback(const sensor_msgs::msg::Poi
 
       pcl::fromPCLPointCloud2(*cloud2_, *cloud_);
       pcl::fromPCLPointCloud2(*normals_cloud2_, *normals_cloud_);
-
-
-
     }
 
     }  // lock guard

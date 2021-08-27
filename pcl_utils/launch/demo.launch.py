@@ -15,12 +15,22 @@
 """Launch a talker and a listener in a component container."""
 
 import launch
+import launch.actions
+import launch.substitutions
+import launch_ros.actions
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.descriptions import ComposableNode
+from launch import LaunchDescription
 
 
 def generate_launch_description():
     """Generate launch description with multiple components."""
+
+    reconfigure_node = launch_ros.actions.Node(
+        package='rqt_reconfigure',
+        executable='rqt_reconfigure'
+    )
+
     container = ComposableNodeContainer(
             name='PCLDemo',
             namespace='',
@@ -63,4 +73,8 @@ def generate_launch_description():
             output='screen',
     )
 
-    return launch.LaunchDescription([container])
+    ld = LaunchDescription()
+    ld.add_action(reconfigure_node)
+    ld.add_action(container)
+    #return launch.LaunchDescription([container, nodes])
+    return ld
