@@ -42,8 +42,6 @@ class NormalsVisualizer : public Visualizer
   sensor_msgs::msg::PointCloud2::ConstSharedPtr cloud_msg_;
   sensor_msgs::msg::PointCloud2::ConstSharedPtr normals_cloud_msg_;
 
-  pcl::PCLPointCloud2Ptr cloud2_;
-  pcl::PCLPointCloud2Ptr normals_cloud2_;
   NormalsPointCloudPtr normals_cloud_;
   PointCloudSTDPtr cloud_;
   int max_queue_size_ = 10;

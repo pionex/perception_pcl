@@ -95,15 +95,11 @@ void pcl_utils::NormalsGenerator::ProcessCloud()
     AppConfig::SetConfig<NormalCloudProvider>(config_NormalCloudProvider);
 
     CloudData data;
-    pcl::PCLPointCloud2 cld;
-    pcl_conversions::toPCL(*input_cloud_, cld);
     data.CloudPtr = pcl::make_shared<PointCloudSTD>();
-    pcl::fromPCLPointCloud2(cld, *data.CloudPtr);
+    pcl::fromROSMsg(*input_cloud_, *data.CloudPtr);
     auto ncp = NormalCloudProvider(data);
     auto ncloud = ncp.GetNormalsCloud();
-    pcl::PCLPointCloud2 ncld;
-    pcl::toPCLPointCloud2(*ncloud, ncld);
-    pcl_conversions::fromPCL(ncld, output_normals_cloud_);
+    pcl::toROSMsg(*ncloud, output_normals_cloud_);
     cloud_processed_ = true;
   }
 }

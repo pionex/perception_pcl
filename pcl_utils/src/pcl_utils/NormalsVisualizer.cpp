@@ -44,26 +44,16 @@ void pcl_utils::NormalsVisualizer::NewCloudsCallback(const sensor_msgs::msg::Poi
 
     if (cloud && normals_cloud)
     {
-      if (!cloud2_)
-        cloud2_ = pcl::make_shared<pcl::PCLPointCloud2>();
-
-      if (!normals_cloud2_)
-        normals_cloud2_ = pcl::make_shared<pcl::PCLPointCloud2>();
-
-      pcl_conversions::toPCL(*cloud, *cloud2_);
-      pcl_conversions::toPCL(*normals_cloud, *normals_cloud2_);
-
       cloud_ = pcl::make_shared<PointCloudSTD>();
       normals_cloud_ = pcl::make_shared<NormalsPointCloud>();
 
-      pcl::fromPCLPointCloud2(*cloud2_, *cloud_);
-      pcl::fromPCLPointCloud2(*normals_cloud2_, *normals_cloud_);
+      pcl::fromROSMsg(*cloud, *cloud_);
+      pcl::fromROSMsg(*normals_cloud, *normals_cloud_);
     }
 
     }  // lock guard
 
   global_update_ = true;
-
   }
 
 

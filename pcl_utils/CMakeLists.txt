@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(pcl_utils)
 
+set (CMAKE_BUILD_TYPE Release)
+
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 20)
 endif()
