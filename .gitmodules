@@ -1,4 +1,0 @@
-[submodule "lib_perception"]
-	path = lib_perception
-	url = git@git.assembla.com:rtu-boxes.production.git
-	branch = rosntest
