@@ -43,7 +43,7 @@
 #include <tf2/exceptions.h>
 #include <tf2/LinearMath/Transform.h>
 #include <tf2/LinearMath/Vector3.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <sensor_msgs/msg/point_cloud2.hpp>
@@ -166,7 +166,7 @@ transformPointCloud(
     out.is_dense = in.is_dense;
     out.data.resize(in.data.size());
     // Copy everything as it's faster than copying individual elements
-    memcpy(&out.data[0], &in.data[0], in.data.size());
+    memcpy(out.data.data(), in.data.data(), in.data.size());
   }
 
   Eigen::Array4i xyz_offset(in.fields[x_idx].offset, in.fields[y_idx].offset,
